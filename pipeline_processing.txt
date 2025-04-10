@@ -1,0 +1,104 @@
+module PipelineProcessor(input clk, input reset);
+
+  // Define instruction opcodes
+  parameter ADD = 4'b0001,
+            SUB = 4'b0010,
+            LOAD = 4'b0011;
+
+  // Instruction Memory (8 instructions max)
+  reg [15:0] instr_mem [0:7];
+  // Data Memory (256 words)
+  reg [15:0] data_mem [0:255];
+  // Register File (16 registers)
+  reg [15:0] regfile [0:15];
+
+  // Pipeline Registers
+  reg [15:0] IF_ID_instr, IF_ID_pc;
+  reg [3:0] ID_EX_opcode, ID_EX_rd, ID_EX_rs, ID_EX_rt;
+  reg [15:0] ID_EX_rs_val, ID_EX_rt_val, ID_EX_imm;
+  reg [3:0] EX_MEM_rd;
+  reg [15:0] EX_MEM_alu_out, EX_MEM_rt_val;
+  reg [3:0] MEM_WB_rd;
+  reg [15:0] MEM_WB_result;
+
+  // PC
+  reg [15:0] pc;
+
+  // Fetch Stage (IF)
+  always @(posedge clk or posedge reset) begin
+    if (reset) begin
+      pc <= 0;
+    end else begin
+      IF_ID_instr <= instr_mem[pc[3:0]];
+      IF_ID_pc <= pc;
+      pc <= pc + 1;
+    end
+  end
+
+  // Decode Stage (ID)
+  wire [3:0] opcode = IF_ID_instr[15:12];
+  wire [3:0] rd = IF_ID_instr[11:8];
+  wire [3:0] rs = IF_ID_instr[7:4];
+  wire [3:0] rt = IF_ID_instr[3:0];
+  wire [15:0] imm_ext = {12'b0, IF_ID_instr[3:0]}; // 4-bit immediate
+
+  always @(posedge clk) begin
+    ID_EX_opcode <= opcode;
+    ID_EX_rd <= rd;
+    ID_EX_rs <= rs;
+    ID_EX_rt <= rt;
+    ID_EX_rs_val <= regfile[rs];
+    ID_EX_rt_val <= regfile[rt];
+    ID_EX_imm <= imm_ext;
+  end
+
+  // Execute Stage (EX)
+  reg [15:0] alu_result;
+
+  always @(posedge clk) begin
+    case (ID_EX_opcode)
+      ADD: alu_result <= ID_EX_rs_val + ID_EX_rt_val;
+      SUB: alu_result <= ID_EX_rs_val - ID_EX_rt_val;
+      LOAD: alu_result <= ID_EX_rs_val + ID_EX_imm;
+      default: alu_result <= 0;
+    endcase
+
+    EX_MEM_rd <= ID_EX_rd;
+    EX_MEM_alu_out <= alu_result;
+    EX_MEM_rt_val <= ID_EX_rt_val;
+  end
+
+  // Memory / Writeback Stage (MEM/WB)
+  always @(posedge clk) begin
+    MEM_WB_rd <= EX_MEM_rd;
+
+    if (ID_EX_opcode == LOAD)
+      MEM_WB_result <= data_mem[EX_MEM_alu_out];
+    else
+      MEM_WB_result <= EX_MEM_alu_out;
+
+    // Write Back
+    if (MEM_WB_rd != 0)
+      regfile[MEM_WB_rd] <= MEM_WB_result;
+  end
+
+  // Initial setup (for testing/demo)
+  initial begin
+    // Example Instructions
+    // LOAD R1, 0(R2)
+    // ADD R3, R1, R4
+    // SUB R5, R3, R6
+    instr_mem[0] = {LOAD, 4'd1, 4'd2, 4'd0};
+    instr_mem[1] = {ADD, 4'd3, 4'd1, 4'd4};
+    instr_mem[2] = {SUB, 4'd5, 4'd3, 4'd6};
+
+    // Initialize Registers
+    regfile[2] = 8;  // R2 = 8
+    regfile[4] = 5;  // R4 = 5
+    regfile[6] = 2;  // R6 = 2
+
+    // Initialize Memory
+    data_mem[8] = 10; // MEM[8] = 10
+  end
+
+endmodule
