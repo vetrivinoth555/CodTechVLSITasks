@@ -1,0 +1,56 @@
+module tb_sync_ram;
+
+    parameter DATA_WIDTH = 8;
+    parameter ADDR_WIDTH = 4;
+
+    reg clk;
+    reg we;
+    reg [ADDR_WIDTH-1:0] addr;
+    reg [DATA_WIDTH-1:0] din;
+    wire [DATA_WIDTH-1:0] dout;
+
+    sync_ram #(DATA_WIDTH, ADDR_WIDTH) uut (
+        .clk(clk),
+        .we(we),
+        .addr(addr),
+        .din(din),
+        .dout(dout)
+    );
+
+    // Clock generation
+    initial clk = 0;
+    always #5 clk = ~clk; // 10 time units clock period
+
+    initial begin
+        // Monitor signals
+        $monitor("Time: %0t | WE: %b | ADDR: %h | DIN: %h | DOUT: %h", 
+                  $time, we, addr, din, dout);
+
+        // Test sequence
+        we = 0; addr = 0; din = 0;
+        #10;
+
+        // Write to address 2
+        we = 1; addr = 4'h2; din = 8'hA5;
+        #10;
+
+        // Write to address 5
+        addr = 4'h5; din = 8'h3C;
+        #10;
+
+        // Disable write and read from address 2
+        we = 0; addr = 4'h2;
+        #10;
+
+        // Read from address 5
+        addr = 4'h5;
+        #10;
+
+        // Read from address 1 (default value)
+        addr = 4'h1;
+        #10;
+
+        $finish;
+    end
+
+endmodule
