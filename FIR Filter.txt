@@ -1,0 +1,67 @@
+module FIR_Filter (
+    input clk,
+    input reset,
+    input signed [7:0] data_in,
+    output reg signed [15:0] data_out
+);
+    
+    // Filter coefficients (h[0] to h[3])
+    parameter signed [7:0] h0 = 8'h0A;  // 10
+    parameter signed [7:0] h1 = 8'h1E;  // 30
+    parameter signed [7:0] h2 = 8'h1E;  // 30
+    parameter signed [7:0] h3 = 8'h0A;  // 10
+    
+    // Delay line (shift register)
+    reg signed [7:0] delay_line [0:3];
+    
+    // Pipeline registers for multipliers
+    reg signed [15:0] prod0, prod1, prod2, prod3;
+    
+    // Accumulator
+    reg signed [15:0] acc;
+    
+    integer i;
+    
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            // Reset delay line
+            for (i = 0; i < 4; i = i + 1)
+                delay_line[i] <= 8'b0;
+                
+            // Reset pipeline registers
+            prod0 <= 16'b0;
+            prod1 <= 16'b0;
+            prod2 <= 16'b0;
+            prod3 <= 16'b0;
+            
+            // Reset accumulator
+            acc <= 16'b0;
+            
+            // Reset output
+            data_out <= 16'b0;
+        end else begin
+            // Update delay line (shift register)
+            delay_line[0] <= data_in;
+            for (i = 1; i < 4; i = i + 1)
+                delay_line[i] <= delay_line[i-1];
+            
+            // Pipeline stage 1: Multiplications
+            prod0 <= delay_line[0] * h0;
+            prod1 <= delay_line[1] * h1;
+            prod2 <= delay_line[2] * h2;
+            prod3 <= delay_line[3] * h3;
+            
+            // Pipeline stage 2: Summation with saturation
+            acc <= prod0 + prod1 + prod2 + prod3;
+            
+            // Output with saturation
+            if (acc > 32767)
+                data_out <= 32767;
+            else if (acc < -32768)
+                data_out <= -32768;
+            else
+                data_out <= acc;
+        end
+    end
+    
+endmodule
