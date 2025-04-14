@@ -1,6 +1,6 @@
  *Company Name* = CODTECH IT SOLUTIONS<br>
  *Name*         = VINOTH R <br>
- *Intern ID*    = COD123<br>
+ *Intern ID*    = CTO6WF92 <br>
  *Domain*       = VLSI<br>
  *Duration*     = 6 Weeks<br>
  *Mentor*       = NEELA SANTOSH<br>
